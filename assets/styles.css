@@ -326,6 +326,11 @@ textarea:disabled { opacity: .6; }
 .repair-cause { margin: 0; padding: 10px 14px; border-left: 1px solid var(--green); background: var(--panel); color: var(--muted); font-size: .79rem; line-height: 1.8; }
 .verify-cmds { display: grid; gap: 6px; margin-top: 6px; }
 .verify-cmds code { display: block; padding: 8px 11px; }
+.repair-decode { display: grid; gap: 8px; margin: 8px 0 0; }
+.repair-decode > div { display: grid; grid-template-columns: minmax(140px, .72fr) minmax(0, 1.3fr); align-items: baseline; gap: 10px 14px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-soft); }
+.repair-decode dt { margin: 0; }
+.repair-decode dd { margin: 0; color: var(--muted); font-size: .76rem; line-height: 1.65; }
+.repair-caution { margin: 12px 0; padding: 10px 14px; border-left: 2px solid var(--yellow); background: #222019; color: var(--yellow); font-size: .76rem; line-height: 1.75; }
 .repair-healthy { margin: 14px 0 4px; padding: 10px 14px; border: 1px solid #405145; border-radius: 8px; background: #18231c; color: var(--green); font-size: .75rem; line-height: 1.7; }
 .reference-layout { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); align-items: start; gap: clamp(40px, 7vw, 100px); }
 .reference-sidebar { position: sticky; top: 112px; }
@@ -549,6 +554,7 @@ footer { border-top: 1px solid var(--line); }
   .method-desc { font-size: .8rem; }
   .method-card ol { padding-left: 16px; }
   .search-empty { padding: 28px 24px; }
+  .repair-decode > div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .checklist-grid li { grid-template-columns: 24px minmax(0, 1fr); }
 }
 

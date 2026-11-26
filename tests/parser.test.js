@@ -156,6 +156,20 @@ versionCode=10
   assert.equal(mod.severity, "info");
 });
 
+test("parses precompiled_sepolicy, secilc, and unlabeled SELinux errors", () => {
+  const report = parseDetectorReport(`
+init: precompiled_sepolicy failed sha256 mismatch
+init: secilc failed to compile policy
+avc: denied { execute } for comm="init" path="/vendor/bin/x" scontext=u:r:init:s0 tcontext=u:object_r:unlabeled:s0 tclass=file permissive=0
+`);
+  const selinux = report.findings.find(item => item.name === "SELinux");
+  const avc = report.findings.find(item => item.name === "SELinux AVC");
+  assert.ok(selinux);
+  assert.equal(selinux.severity, "danger");
+  assert.ok(avc);
+  assert.equal(avc.severity, "danger");
+});
+
 test("keeps RU/EN translations and REPAIR_GUIDE links complete", () => {
   const i18nCode = fs.readFileSync(path.join(__dirname, "../assets/i18n.js"), "utf8");
   const ctx = {};
@@ -172,5 +186,11 @@ test("keeps RU/EN translations and REPAIR_GUIDE links complete", () => {
   for (const item of REPAIR_GUIDE) {
     assert.ok(REPAIR_GUIDE_EN[item.id], `Missing REPAIR_GUIDE_EN entry for ${item.id}`);
     assert.ok(Array.isArray(item.verifyCmds) && item.verifyCmds.length > 0);
+    if (item.decode) {
+      assert.equal(REPAIR_GUIDE_EN[item.id].decode?.length, item.decode.length, `Decode parity mismatch for ${item.id}`);
+    }
+    if (item.caution) {
+      assert.ok(REPAIR_GUIDE_EN[item.id].caution, `Missing caution in EN for ${item.id}`);
+    }
   }
 });

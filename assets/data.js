@@ -491,14 +491,21 @@ const REPAIR_GUIDE = [
     cause: "Системный скрипт, кастомное ядро или модуль перевели SELinux в Permissive, из-за чего политика не применяется и страдает безопасность системы.",
     verifyCmds: [
       "adb shell getenforce",
-      "adb shell dmesg | grep -iE 'selinux|permissive'"
+      "adb shell dmesg | grep -iE 'selinux|permissive'",
+      "adb shell grep -rn \"setenforce\" /data/adb/modules/ 2>/dev/null"
+    ],
+    decode: [
+      { token: "Enforcing", meaning: "Норма: политика SELinux активна и блокирует запрещённые действия." },
+      { token: "Permissive / permissive=1", meaning: "Политика не блокирует нарушения, а только пишет их в лог — обычно включено скриптом или параметром ядра androidboot.selinux=permissive." },
+      { token: "Disabled", meaning: "SELinux полностью отключён на уровне ядра/загрузки." }
     ],
     steps: [
-      "Найдите скрипт или модуль, вызывающий <code>setenforce 0</code> (проверьте <code>post-fs-data.sh</code> и <code>service.sh</code> в <code>/data/adb/modules</code>).",
-      "Отключите проблемный модуль через флаг <code>touch /data/adb/modules/&lt;id&gt;/disable</code>, не удаляя root-менеджер.",
-      "Если режим переключён временно из shell — верните <code>setenforce 1</code> (под root) и проверьте, нет ли блокирующих сбоев.",
-      "Перезагрузите устройство и убедитесь, что режим остаётся <code>Enforcing</code> после старта."
+      "Проверьте, не переключает ли режим скрипт модуля: команда <code>grep -rn \"setenforce\" /data/adb/modules/</code> покажет конкретный <code>post-fs-data.sh</code> или <code>service.sh</code>.",
+      "Отключите найденный модуль через флаг <code>touch /data/adb/modules/&lt;id&gt;/disable</code>, не удаляя root-менеджер.",
+      "Если в cmdline ядра (<code>cat /proc/cmdline</code>) есть <code>androidboot.selinux=permissive</code>, установите согласованное стоковое ядро или сборку без этого флага.",
+      "Если режим переключён вручную из shell — верните <code>setenforce 1</code> (под root) и проверьте, что сервисы не падают; затем перезагрузите устройство и перепроверьте <code>getenforce</code>."
     ],
+    caution: "Не оставляйте устройство в Permissive на постоянной основе и не добавляйте широкие allow-правила ради подавления ошибок — сначала найдите, какой файл или модуль вызывает конфликт.",
     healthyState: "getenforce возвращает Enforcing, а в dmesg нет новых записей с permissive=1.",
     relatedFindings: ["selinux"]
   },
@@ -511,17 +518,52 @@ const REPAIR_GUIDE = [
     cause: "После ручного копирования файлов, восстановления бэкапа или обновления ROM файлы получили неверный SELinux-контекст (например, <code>unlabeled</code>), либо сервис запускается не в своём домене.",
     verifyCmds: [
       "adb shell dmesg | grep -i 'avc: denied'",
-      "adb logcat -b all -d | grep -i 'avc: denied'",
+      "adb logcat -b events,main,system -d | grep -i 'avc:'",
       "adb shell ls -Z /data/adb"
     ],
-    steps: [
-      "Выделите из строки <code>avc: denied</code> три поля: <code>scontext</code> (кто обращается), <code>tcontext</code> (цель) и путь/<code>tclass</code>.",
-      "Восстановите штатные SELinux-метки на затронутом каталоге командой <code>restorecon -Rv &lt;путь&gt;</code>.",
-      "Не добавляйте широких правил <code>allow *</code> в <code>sepolicy</code> — вместо этого исправьте права/метки файла или уберите несовместимый скрипт модуля.",
-      "Перезагрузите устройство и перепроверьте логи: повторяющихся <code>avc: denied</code> на системных сервисах быть не должно."
+    decode: [
+      { token: "{ read write open }", meaning: "Какое именно действие было заблокировано SELinux." },
+      { token: "scontext=u:r:...", meaning: "Кто пытался выполнить действие (домен процесса, например untrusted_app или system_server)." },
+      { token: "tcontext=u:object_r:...", meaning: "Над каким объектом выполнялось действие; если там unlabeled — у файла/папки потеряна метка." },
+      { token: "tclass=file / dir / binder", meaning: "Тип объекта (файл, каталог, свойство, сокет, binder)." }
     ],
+    steps: [
+      "Прочитайте в строке <code>avc: denied</code> поля <code>tcontext</code>, <code>path=</code>/<code>name=</code> и <code>scontext</code>: если <code>tcontext</code> содержит <code>unlabeled</code> или чужой тип — проблема именно в метках файла, а не в политике.",
+      "Проверьте текущие метки каталога: <code>adb shell ls -Z &lt;путь&gt;</code>.",
+      "Восстановите штатные метки согласно системному <code>file_contexts</code>: <code>restorecon -Rv &lt;путь&gt;</code> (под root в adb shell или recovery).",
+      "Если <code>avc: denied</code> вызывает скрипт модуля (виден в <code>comm=</code> или <code>path=</code>), отключите этот модуль флагом <code>disable</code> и перезагрузитесь.",
+      "После перезагрузки повторите <code>dmesg | grep avc</code> и убедитесь, что отказы на системных доменах исчезли."
+    ],
+    caution: "Если файл имеет метку unlabeled, не меняйте sepolicy — сначала исправьте метку через restorecon -Rv; правка политики не чинит сломанные контексты файловой системы.",
     healthyState: "Файловые метки соответствуют file_contexts, критические сервисы не получают avc: denied.",
     relatedFindings: ["selinux avc", "selinux"]
+  },
+  {
+    id: "selinux-corrupt-policy",
+    category: "selinux",
+    severity: "critical",
+    title: "Повреждение sepolicy: сбой precompiled_sepolicy и CIL",
+    symptom: "precompiled_sepolicy mismatch, secilc compile error, сервисы стартуют в домене unlabeled",
+    cause: "При обновлении системы без согласованного vendor/boot, прошивке несовместимого GSI или ошибке в <code>sepolicy.rule</code> модуля компилятор <code>secilc</code> не может собрать итоговую политику при загрузке.",
+    verifyCmds: [
+      "adb shell dmesg | grep -iE 'sepolicy|secilc|cil|precompiled'",
+      "adb shell ps -AZ | grep -i unlabeled",
+      "adb shell ls -la /data/adb/modules/*/sepolicy.rule 2>/dev/null"
+    ],
+    decode: [
+      { token: "precompiled_sepolicy sha256 mismatch", meaning: "Несовпадение версий system/product и vendor CIL-политик; init пытается пересобрать политику на лету." },
+      { token: "secilc failed / syntax error", meaning: "Ошибка компиляции объединённой политики — часто из-за устаревшего sepolicy.rule в модуле или битого раздела." },
+      { token: "ps -AZ → u:r:unlabeled:s0", meaning: "Политика не загрузилась корректно либо отсутствуют правила доменов для системных служб." }
+    ],
+    steps: [
+      "Проверьте, есть ли у модулей файлы <code>sepolicy.rule</code>: <code>ls -la /data/adb/modules/*/sepolicy.rule</code>. Отключите модули с такими правилами через <code>disable</code>-флаг и перезагрузитесь.",
+      "Проверьте версию root-менеджера: старые версии Magisk/KernelSU могут некорректно патчить политику на новых версиях Android.",
+      "Если ошибки <code>precompiled_sepolicy</code> или <code>secilc</code> остались без активных модулей — прошейте согласованные образы <code>boot.img</code>, <code>vendor_boot.img</code> и <code>vbmeta</code> от той же точной сборки ROM.",
+      "После перезагрузки проверьте <code>getenforce</code> и отсутствие процессов с контекстом <code>unlabeled</code> в <code>ps -AZ</code>."
+    ],
+    caution: "Не смешивайте system/GSI и vendor от разных сборок без соответствующих mapping-файлов (/system/etc/selinux/mapping) — это частая причина бутлупа на этапе init.",
+    healthyState: "dmesg не содержит ошибок secilc/precompiled_sepolicy, а ps -AZ не показывает системных процессов в unlabeled.",
+    relatedFindings: ["selinux", "selinux avc"]
   },
   {
     id: "mount-rw-overlay",
@@ -534,12 +576,18 @@ const REPAIR_GUIDE = [
       "adb shell cat /proc/mounts | grep -E ' (/system|vendor|product|system_ext|apex)'",
       "adb shell dmesg | grep -iE 'overlayfs|mount|erofs'"
     ],
+    decode: [
+      { token: "ro,seclabel", meaning: "Норма: системный раздел смонтирован только для чтения и с SELinux-метками." },
+      { token: "rw,seclabel", meaning: "Аномалия для /system, /vendor, /product — раздел открыт на запись или перемонтирован." },
+      { token: "overlayfs: failed / lowerdir", meaning: "Конфликт модулей, пытающихся перекрыть один и тот же системный каталог." }
+    ],
     steps: [
       "Проверьте список активных модулей, модифицирующих системные пути: отключите лишние или дублирующие оверлеи.",
       "Убедитесь, что системные разделы (<code>/system</code>, <code>/vendor</code>, <code>/product</code>) смонтированы с флагом <code>ro</code>.",
       "Если на устройстве остались следы старых root-решений в <code>/sbin</code> или устаревших mount-скриптов — удалите их и перезагрузитесь.",
       "После перезагрузки повторно снимите <code>/proc/mounts</code> и сравните с эталоном."
     ],
+    caution: "Не монтируйте /system в rw на динамических разделах (super/erofs) вручную — это часто повреждает целостность и вызывает отказ запуска.",
     healthyState: "Системные разделы смонтированы в ro, в dmesg нет ошибок overlayfs и mount failed.",
     relatedFindings: ["mount"]
   },
@@ -554,12 +602,18 @@ const REPAIR_GUIDE = [
       "adb shell ls -la /data/adb/modules",
       "adb logcat -d | grep -iE 'magisk|ksud|apatch|module'"
     ],
+    decode: [
+      { token: "disable", meaning: "Модуль безопасно выключен флагом — его скрипты и оверлеи не применяются при старте." },
+      { token: "remove", meaning: "Модуль помечен на удаление при следующей перезагрузке." },
+      { token: "post-fs-data timeout", meaning: "Скрипт блокирует раннюю загрузку дольше лимита и может приводить к зависанию старта." }
+    ],
     steps: [
       "Изолируйте проблемный модуль без потери root: создайте файл-флаг <code>touch /data/adb/modules/&lt;id&gt;/disable</code> (в ADB или recovery).",
       "Проверьте <code>module.prop</code> и права на выполнение (<code>chmod 755</code>) у <code>post-fs-data.sh</code> и <code>service.sh</code>.",
       "Включайте модули обратно по одному, каждый раз проверяя лог загрузки и стабильность сервисов.",
       "Устаревшие модули, не обновлявшиеся под текущий API Android, замените на совместимые версии или удалите через <code>remove</code>-флаг."
     ],
+    caution: "Для отключения сбойного модуля не нужно удалять root-менеджер или сбрасывать /data — достаточно файла disable в папке конкретного модуля.",
     healthyState: "Все активные модули загружаются без ошибок скриптов и не вызывают перезапусков сервисов.",
     relatedFindings: ["module diagnostics"]
   },
@@ -574,12 +628,18 @@ const REPAIR_GUIDE = [
       "adb shell dumpsys android.security.maintenance",
       "adb logcat -d | grep -iE 'keystore2|keymint|keymaster'"
     ],
+    decode: [
+      { token: "ServiceSpecificException", meaning: "keystore2 передаёт ошибку уровня ResponseCode или аппаратного KeyMint ErrorCode (например, сбой TEE или переполнение слотов)." },
+      { token: "HAL died / unavailable", meaning: "Сервис android.hardware.security.keymint упал или не запустился при старте." },
+      { token: "VINTF mismatch", meaning: "Ожидаемая системой версия KeyMint/Keymaster не совпадает с тем, что реально отдаёт vendor." }
+    ],
     steps: [
       "Проверьте, запущен ли сервис: <code>adb shell service list | grep -iE 'keymint|keymaster|keystore'</code>.",
       "Сверьте совместимость vendor-образа, ядра и текущей прошивки — обновите vendor/firmware до согласованной версии.",
       "Временно отключите модули, затрагивающие keystore или системные библиотеки TEE, и перезагрузите устройство.",
       "Оцените повторный лог: ошибки <code>ServiceSpecificException</code> и падения HAL должны исчезнуть."
     ],
+    caution: "Не удаляйте базу /data/misc/keystore вручную без резервной копии — это сбросит сохранённые ключи приложений и блокировки экрана.",
     healthyState: "keystore2 и KeyMint HAL работают без исключений, биометрия и хранилище ключей функционируют штатно.",
     relatedFindings: ["keymint keystore", "tee"]
   },
@@ -594,12 +654,17 @@ const REPAIR_GUIDE = [
       "adb logcat -b crash -d",
       "adb logcat -d | grep -iE 'zygote|dlopen failed|cannot locate symbol'"
     ],
+    decode: [
+      { token: "dlopen failed / cannot locate symbol", meaning: "Загружаемый .so-файл собран под другую версию Android или несовместимый linker/ABI." },
+      { token: "Fatal signal 11 (SIGSEGV)", meaning: "Нарушение доступа к памяти внутри нативного кода при форке процесса из zygote." }
+    ],
     steps: [
       "Найдите в <code>logcat -b crash</code> путь к библиотеке <code>*.so</code>, на которой падает процесс.",
       "Проверьте архитектуру устройства (<code>getprop ro.product.cpu.abi</code>) и убедитесь, что модуль содержит библиотеки под нужный ABI.",
       "Отключите конфликтующий нативный модуль (создайте <code>disable</code>-флаг в папке модуля) и выполните полную перезагрузку.",
       "Повторно проверьте журнал <code>crash</code> после запуска нескольких приложений."
     ],
+    caution: "Не подменяйте системные библиотеки в /system/lib64 вручную — все правки проверяйте только через отключаемые модули.",
     healthyState: "Буфер crash не содержит новых падений zygote/app_process и ошибок dlopen.",
     relatedFindings: ["zygote runtime", "zygisk"]
   },
@@ -614,12 +679,18 @@ const REPAIR_GUIDE = [
       "adb logcat -b system,crash -d | tail -n 120",
       "adb shell ls -la /data/system/dropbox"
     ],
+    decode: [
+      { token: "WATCHDOG KILLING SYSTEM PROCESS", meaning: "Один из системных сервисов завис дольше таймаута Watchdog и вызвал принудительный рестарт фреймворка." },
+      { token: "DeadSystemException", meaning: "Последствие падения system_server: приложения потеряли связь с системным процессом." },
+      { token: "SELinuxMMAC", meaning: "Ошибка разбора mac_permissions.xml или сопоставления подписи/seinfo системного пакета." }
+    ],
     steps: [
       "Изучите стек перед строкой <code>WATCHDOG KILLING SYSTEM PROCESS</code>, чтобы понять, какая служба удерживала блокировку.",
       "Если сбой начался после установки модулей или оверлеев — отключите последние модули и загрузите систему.",
       "При ошибках <code>SELinuxMMAC</code> проверьте целостность <code>mac_permissions.xml</code> и откатите правки системных приложений.",
       "Проверьте стабильность работы после полной перезагрузки в течение нескольких минут."
     ],
+    caution: "При циклическом падении system_server используйте Safe Mode или отключение модулей в recovery, чтобы не потерять доступ к данным.",
     healthyState: "system_server работает стабильно, Watchdog и DeadSystemException в логах отсутствуют.",
     relatedFindings: ["systemserver"]
   },
@@ -634,12 +705,17 @@ const REPAIR_GUIDE = [
       "adb shell getprop init.svc.adbd",
       "adb shell getprop persist.sys.usb.config"
     ],
+    decode: [
+      { token: "init.svc.adbd = running", meaning: "Демон ADB сейчас запущен и слушает USB/сокет." },
+      { token: "persist.sys.usb.config = mtp,adb", meaning: "В сохранённом профиле USB всё ещё включён интерфейс adb." }
+    ],
     steps: [
       "Отключите USB debugging и Wireless debugging в разделе «Для разработчиков» и отзовите старые ADB-авторизации.",
       "Проверьте, не запускает ли <code>adbd</code> какой-либо модуль автоматизации или отладочный скрипт.",
       "Приведите USB-профиль в штатное состояние (<code>mtp</code>) и перезагрузите устройство.",
       "Убедитесь, что состояние в настройках и <code>getprop init.svc.adbd</code> совпадают."
     ],
+    caution: "Перед отключением отладки убедитесь, что у вас есть рабочий доступ к устройству и не требуется срочная отладка по USB при загрузке.",
     healthyState: "При выключенной отладке init.svc.adbd=stopped, persist.sys.usb.config не содержит adb.",
     relatedFindings: ["adb runtime", "system properties"]
   }

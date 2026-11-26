@@ -134,6 +134,7 @@ const GENERIC_RULES = [
       /\bgetenforce\b.{0,20}(?:permissive|disabled)/i,
       /^(?:selinux(?:\s+status|\s+mode)?|getenforce)\s*[:=]\s*(?:permissive|disabled)\b/i,
       /\bpermissive\s*=\s*1\b/i,
+      /(?:precompiled_sepolicy|secilc|selinux_android_restorecon).{0,55}(?:fail(?:ed)?|error|mismatch|corrupt|unable|denied)/i,
       /dirty\s*sepolicy/i,
       /system_server.{0,35}execmem.{0,20}(?:allow|granted|yes|true)/i
     ],
@@ -143,10 +144,11 @@ const GENERIC_RULES = [
     name: "SELinux AVC", severity: "warning",
     patterns: [
       /avc:\s*denied\s*\{[^}]+\}/i,
-      /\bsepolicy\b.{0,45}(?:error|failed|denied|invalid|syntax)/i
+      /\bsepolicy\b.{0,45}(?:error|failed|denied|invalid|syntax)/i,
+      /u:(?:object_r|r):unlabeled:s0/i
     ],
     severityForMatches: matches => matches.some(line =>
-      /\bpermissive\s*=\s*1\b|scontext=u:r:(?:system_server|init|keystore|zygote|vold):/i.test(line)
+      /\bpermissive\s*=\s*1\b|scontext=u:r:(?:system_server|init|keystore|zygote|vold|unlabeled):/i.test(line)
     ) ? "danger" : "warning"
   },
   {

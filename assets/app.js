@@ -565,7 +565,11 @@ function renderRepairGuide(animate = false) {
   const visible = REPAIR_GUIDE.filter(item => {
     const matchesFilter = repairFilter === "all" || item.category === repairFilter;
     const english = REPAIR_GUIDE_EN[item.id] || {};
-    const haystack = `${item.title} ${item.symptom} ${item.cause} ${item.verifyCmds.join(" ")} ${item.healthyState} ${english.title || ""} ${english.symptom || ""} ${english.cause || ""}`.toLowerCase();
+    const decodeText = [
+      ...(item.decode || []).map(d => `${d.token} ${d.meaning}`),
+      ...(english.decode || []).map(d => `${d.token} ${d.meaning}`)
+    ].join(" ");
+    const haystack = `${item.title} ${item.symptom} ${item.cause} ${item.caution || ""} ${decodeText} ${item.verifyCmds.join(" ")} ${item.healthyState} ${english.title || ""} ${english.symptom || ""} ${english.cause || ""} ${english.caution || ""}`.toLowerCase();
     return matchesFilter && (!term || haystack.includes(term));
   }).map(localizedGuideItem);
   els.repairGrid.classList.toggle("is-entering", animate);
@@ -573,6 +577,8 @@ function renderRepairGuide(animate = false) {
     const number = String(REPAIR_GUIDE.findIndex(entry => entry.id === item.id) + 1).padStart(2, "0");
     const sevLabel = t(sevKeys[item.severity] || "sevMedium");
     const verifyHtml = item.verifyCmds?.length ? `<div class="repair-block"><span class="repair-block-label">${escapeHTML(t("repairVerify"))}</span><div class="verify-cmds">${item.verifyCmds.map(cmd => `<code>${escapeHTML(cmd)}</code>`).join("")}</div></div>` : "";
+    const decodeHtml = item.decode?.length ? `<div class="repair-block"><span class="repair-block-label">${escapeHTML(t("repairDecode"))}</span><dl class="repair-decode">${item.decode.map(entry => `<div><dt><code>${escapeHTML(entry.token)}</code></dt><dd>${escapeHTML(entry.meaning)}</dd></div>`).join("")}</dl></div>` : "";
+    const cautionHtml = item.caution ? `<p class="repair-caution"><strong>${escapeHTML(t("repairCaution"))}:</strong> ${escapeHTML(item.caution)}</p>` : "";
     return `<article class="method-card" id="guide-${escapeHTML(item.id)}" style="--index: ${Math.min(index, 6)}" aria-labelledby="guide-title-${escapeHTML(item.id)}">
       <span class="method-index" aria-hidden="true">${number}</span>
       <div class="method-content">
@@ -582,7 +588,9 @@ function renderRepairGuide(animate = false) {
         <details${openItems.has(`guide-${item.id}`) ? " open" : ""}>
           <summary>${escapeHTML(t("repairOpenDetails"))}${icon("chevron")}</summary>
           ${verifyHtml}
+          ${decodeHtml}
           <div class="repair-block"><span class="repair-block-label">${escapeHTML(t("repairSteps"))}</span><ol>${item.steps.map(step => `<li>${step}</li>`).join("")}</ol></div>
+          ${cautionHtml}
           <p class="repair-healthy"><strong>${escapeHTML(t("repairHealthy"))}:</strong> ${escapeHTML(item.healthyState)}</p>
         </details>
       </div>

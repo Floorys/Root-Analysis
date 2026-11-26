@@ -41,6 +41,7 @@ const UI_TEXT = {
     repairEmptyTitle: "Сценарий не найден", repairEmptyText: "Попробуй другой симптом или сбрось поиск и фильтр категории.",
     resetRepair: "Сбросить фильтры", repairCause: "Причина", repairVerify: "Команды проверки (read-only)",
     repairSteps: "Шаги восстановления", repairHealthy: "Здоровое состояние", repairOpenDetails: "Диагностика и лечение",
+    repairDecode: "Как читать вывод", repairCaution: "Важно не сломать",
     openInRepairGuide: "Путеводитель: {title}",
     adbSnapshotTitle: "Снимок диагностики (read-only)",
     adbSnapshotDesc: "Выполните на ПК по ADB, чтобы собрать getenforce, avc, монтирования, модули и ошибки сервисов в один текстовый лог:",
@@ -127,6 +128,7 @@ const UI_TEXT = {
     repairEmptyTitle: "No matching scenario", repairEmptyText: "Try another symptom keyword, or reset the search and category filter.",
     resetRepair: "Reset filters", repairCause: "Root cause", repairVerify: "Verification commands (read-only)",
     repairSteps: "Repair steps", repairHealthy: "Healthy state", repairOpenDetails: "Diagnostics and repair",
+    repairDecode: "How to read the output", repairCaution: "Safety note",
     openInRepairGuide: "Repair guide: {title}",
     adbSnapshotTitle: "Diagnostic snapshot (read-only)",
     adbSnapshotDesc: "Run over ADB on your computer to collect getenforce, avc, mounts, modules, and service errors into one text log:",
@@ -246,96 +248,162 @@ const REPAIR_GUIDE_EN = {
     title: "SELinux in Permissive or Disabled mode",
     symptom: "getenforce → Permissive / Disabled, or avc: denied lines with permissive=1",
     cause: "A boot script, custom kernel, or module switched SELinux to Permissive, leaving policy unenforced.",
-    steps: [
-      "Locate the script or module calling <code>setenforce 0</code> (check <code>post-fs-data.sh</code> and <code>service.sh</code> in <code>/data/adb/modules</code>).",
-      "Disable the offending module using <code>touch /data/adb/modules/&lt;id&gt;/disable</code> without removing your root manager.",
-      "If switched manually from a shell, restore <code>setenforce 1</code> as root and verify no critical service breaks.",
-      "Reboot and confirm SELinux remains <code>Enforcing</code> after startup."
+    decode: [
+      { token: "Enforcing", meaning: "Healthy: SELinux policy is active and blocks unauthorized access." },
+      { token: "Permissive / permissive=1", meaning: "Violations are logged rather than blocked — usually set by a script or androidboot.selinux=permissive." },
+      { token: "Disabled", meaning: "SELinux is completely disabled at boot/kernel level." }
     ],
+    steps: [
+      "Locate the script or module calling <code>setenforce 0</code> (run <code>grep -rn \"setenforce\" /data/adb/modules/</code>).",
+      "Disable the offending module using <code>touch /data/adb/modules/&lt;id&gt;/disable</code> without removing your root manager.",
+      "If <code>/proc/cmdline</code> passes <code>androidboot.selinux=permissive</code>, switch to a compatible stock kernel or build without that flag.",
+      "If switched manually from a shell, restore <code>setenforce 1</code> as root, verify no critical service breaks, and reboot to confirm <code>Enforcing</code> persists."
+    ],
+    caution: "Do not leave a device permanently in Permissive mode or add broad allow rules to silence errors — isolate the offending file or module first.",
     healthyState: "getenforce returns Enforcing and dmesg shows no new entries with permissive=1."
   },
   "selinux-avc": {
     title: "avc: denied errors and broken context labels",
     symptom: "avc: denied { ... } scontext=... tcontext=... tclass=...",
     cause: "Manual file copies, backup restores, or ROM updates left files with mismatched SELinux labels (such as <code>unlabeled</code>), or a service launched in the wrong domain.",
-    steps: [
-      "Read <code>scontext</code>, <code>tcontext</code>, <code>tclass</code>, and the target path from the <code>avc: denied</code> line.",
-      "Restore default SELinux contexts on the affected directory using <code>restorecon -Rv &lt;path&gt;</code>.",
-      "Avoid adding broad <code>allow *</code> rules to <code>sepolicy</code>; fix file permissions/labels or remove the incompatible module script instead.",
-      "Reboot and recheck logs to confirm critical services no longer trigger <code>avc: denied</code>."
+    decode: [
+      { token: "{ read write open }", meaning: "The exact operation blocked by SELinux." },
+      { token: "scontext=u:r:...", meaning: "Source process domain attempting the action (e.g., untrusted_app or system_server)." },
+      { token: "tcontext=u:object_r:...", meaning: "Target object context; unlabeled here indicates missing filesystem labels." },
+      { token: "tclass=file / dir / binder", meaning: "Category of the target object (file, directory, property, socket, binder)." }
     ],
+    steps: [
+      "Inspect <code>tcontext</code>, <code>path=</code>/<code>name=</code>, and <code>scontext</code> in the <code>avc: denied</code> line; <code>unlabeled</code> points to broken file labels rather than missing policy.",
+      "Inspect current directory labels with <code>adb shell ls -Z &lt;path&gt;</code>.",
+      "Restore default SELinux contexts against <code>file_contexts</code> using <code>restorecon -Rv &lt;path&gt;</code>.",
+      "If a module script triggers the denial (visible in <code>comm=</code> or <code>path=</code>), disable that module via its <code>disable</code> flag and reboot.",
+      "Reboot and recheck <code>dmesg | grep avc</code> to confirm critical system domains no longer trigger denials."
+    ],
+    caution: "When a file is labeled unlabeled, fix its context with restorecon -Rv first instead of patching sepolicy; policy edits do not repair broken filesystem labels.",
     healthyState: "File labels match file_contexts and critical services no longer log avc: denied."
+  },
+  "selinux-corrupt-policy": {
+    title: "Corrupted sepolicy: precompiled_sepolicy & CIL failures",
+    symptom: "precompiled_sepolicy mismatch, secilc compile error, services running as unlabeled",
+    cause: "Updating system/GSI without matching vendor/boot partitions, or an incompatible module <code>sepolicy.rule</code>, prevents <code>secilc</code> from compiling the split policy at boot.",
+    decode: [
+      { token: "precompiled_sepolicy sha256 mismatch", meaning: "System/product and vendor CIL policy hashes do not match; init falls back to runtime recompilation." },
+      { token: "secilc failed / syntax error", meaning: "Merged policy compilation failed — often caused by an outdated module sepolicy.rule or mismatched partition." },
+      { token: "ps -AZ → u:r:unlabeled:s0", meaning: "Policy failed to load properly or domain transitions are missing." }
+    ],
+    steps: [
+      "Check modules shipping <code>sepolicy.rule</code> (<code>ls -la /data/adb/modules/*/sepolicy.rule</code>), disable them via <code>disable</code> flags, and reboot.",
+      "Ensure your root manager version supports the target Android release's sepolicy format.",
+      "If <code>precompiled_sepolicy</code> or <code>secilc</code> errors persist with modules disabled, flash matching <code>boot.img</code>, <code>vendor_boot.img</code>, and <code>vbmeta</code> from the exact ROM release.",
+      "Verify after reboot that <code>getenforce</code> returns <code>Enforcing</code> and <code>ps -AZ</code> shows no core services in <code>unlabeled</code>."
+    ],
+    caution: "Do not mix system/GSI and vendor builds without matching /system/etc/selinux/mapping files — split-policy mismatches commonly cause init bootloops.",
+    healthyState: "dmesg shows no secilc/precompiled_sepolicy errors and ps -AZ lists no system processes as unlabeled."
   },
   "mount-rw-overlay": {
     title: "Broken mounts and rw on system partitions",
     symptom: "/system, /vendor, or /product mounted rw, or overlayfs mount errors",
     cause: "Conflicting mount modules, invalid <code>fstab</code> entries, or leftover overlays keep read-only partitions writable or trigger <code>mount failed</code>.",
+    decode: [
+      { token: "ro,seclabel", meaning: "Healthy: system partition is mounted read-only with SELinux labels." },
+      { token: "rw,seclabel", meaning: "Abnormal on /system, /vendor, /product — partition is writable or remounted." },
+      { token: "overlayfs: failed / lowerdir", meaning: "Module conflict where multiple overlays target the same system directory." }
+    ],
     steps: [
       "Review active modules that mount over system paths and disable conflicting or duplicate overlays.",
       "Confirm <code>/system</code>, <code>/vendor</code>, and <code>/product</code> are mounted read-only (<code>ro</code>).",
       "Remove obsolete mount scripts or leftover paths in <code>/sbin</code> from older root setups, then reboot.",
       "Recheck <code>/proc/mounts</code> after reboot against the baseline."
     ],
+    caution: "Avoid remounting dynamic partitions (super/erofs) as rw manually — it can corrupt partition integrity and break boot.",
     healthyState: "System partitions are mounted ro and dmesg shows no overlayfs or mount failed errors."
   },
   "module-script-crash": {
     title: "Module script failure (post-fs-data / service.sh) or bootloop",
     symptom: "module.prop errors, post-fs-data.sh / service.sh failed, disable/bootloop flags",
     cause: "A module script invokes a missing binary, times out, or is incompatible with the current Android/kernel version.",
+    decode: [
+      { token: "disable", meaning: "Module is safely disabled by flag — its scripts and overlays are skipped on boot." },
+      { token: "remove", meaning: "Module is queued for removal on next reboot." },
+      { token: "post-fs-data timeout", meaning: "Boot script blocked early initialization past the timeout and can stall startup." }
+    ],
     steps: [
       "Isolate the faulty module without removing root: create <code>touch /data/adb/modules/&lt;id&gt;/disable</code> via ADB or recovery.",
       "Inspect <code>module.prop</code> and executable permissions (<code>chmod 755</code>) on <code>post-fs-data.sh</code> and <code>service.sh</code>.",
       "Re-enable modules one at a time while checking boot logs and service stability.",
       "Replace outdated modules or mark them for removal via the <code>remove</code> flag."
     ],
+    caution: "You do not need to uninstall root or wipe /data to stop a broken module — creating a disable flag inside its folder is enough.",
     healthyState: "All active modules load cleanly without script failures or service restarts."
   },
   "keymint-keystore-hal": {
     title: "KeyMint / Keystore2 HAL failures",
     symptom: "ServiceSpecificException, KeyMint / Keymaster HAL died, VINTF mismatch",
     cause: "A mismatch between <code>vendor</code>/HAL and the system framework, a crashed KeyMint service, or conflicting security libraries after an update.",
+    decode: [
+      { token: "ServiceSpecificException", meaning: "keystore2 surfaced a ResponseCode or KeyMint ErrorCode (e.g., TEE lockup or slot exhaustion)." },
+      { token: "HAL died / unavailable", meaning: "android.hardware.security.keymint crashed or failed to start at boot." },
+      { token: "VINTF mismatch", meaning: "Expected framework KeyMint/Keymaster version differs from the vendor HAL." }
+    ],
     steps: [
       "Check service availability with <code>adb shell service list | grep -iE 'keymint|keymaster|keystore'</code>.",
       "Verify that vendor, firmware, and kernel versions match the installed ROM release.",
       "Temporarily disable modules touching keystore or TEE system libraries and reboot.",
       "Recheck logs to confirm <code>ServiceSpecificException</code> and HAL crashes are gone."
     ],
+    caution: "Do not delete /data/misc/keystore manually without a backup — doing so resets stored app keys and lockscreen credentials.",
     healthyState: "keystore2 and KeyMint HAL run without exceptions; biometrics and key storage work normally."
   },
   "zygote-native-crash": {
     title: "Zygote / app_process crashes and dlopen failures",
     symptom: "Fatal signal (SIGSEGV/SIGABRT) in zygote/app_process or dlopen failed",
     cause: "A module's native library uses the wrong ABI, is corrupted, or conflicts with the system linker inside <code>zygote</code>.",
+    decode: [
+      { token: "dlopen failed / cannot locate symbol", meaning: "Loaded .so binary targets an incompatible Android release or linker ABI." },
+      { token: "Fatal signal 11 (SIGSEGV)", meaning: "Memory access fault inside native code during zygote process fork." }
+    ],
     steps: [
       "Check <code>logcat -b crash</code> to identify the exact <code>*.so</code> library causing the crash.",
       "Verify device ABI (<code>getprop ro.product.cpu.abi</code>) and ensure modules ship matching binaries.",
       "Disable the conflicting native module via its <code>disable</code> flag and perform a full reboot.",
       "Recheck the <code>crash</code> log buffer after launching several apps."
     ],
+    caution: "Never overwrite libraries inside /system/lib64 manually — isolate native changes strictly through reversible modules.",
     healthyState: "The crash log buffer shows no new zygote/app_process crashes or dlopen errors."
   },
   "systemserver-watchdog": {
     title: "SystemServer Watchdog kills and framework stalls",
     symptom: "WATCHDOG KILLING SYSTEM PROCESS, DeadSystemException, SELinuxMMAC error",
     cause: "<code>system_server</code> deadlocked, failed to start a core service, or crashed on a malformed permission configuration.",
+    decode: [
+      { token: "WATCHDOG KILLING SYSTEM PROCESS", meaning: "A system service deadlocked past the Watchdog timeout and triggered a framework restart." },
+      { token: "DeadSystemException", meaning: "Downstream error seen by apps when system_server restarts." },
+      { token: "SELinuxMMAC", meaning: "Failure parsing mac_permissions.xml or matching system app signing/seinfo rules." }
+    ],
     steps: [
       "Inspect the stack trace immediately preceding <code>WATCHDOG KILLING SYSTEM PROCESS</code> to find the blocked service.",
       "If the issue started after installing modules or overlays, disable recent modules and reboot.",
       "For <code>SELinuxMMAC</code> errors, verify <code>mac_permissions.xml</code> integrity and revert system-app modifications.",
       "Confirm system stability over several minutes after a full reboot."
     ],
+    caution: "If system_server crashes in a loop, use Safe Mode or recovery module disabling instead of factory-resetting immediately.",
     healthyState: "system_server runs stably with no Watchdog or DeadSystemException entries."
   },
   "adb-usb-stuck": {
     title: "ADB / USB configuration mismatch",
     symptom: "init.svc.adbd=running or persist.sys.usb.config=adb while debugging is disabled",
     cause: "<code>adbd</code> was kept alive by an automation script or USB configuration failed to reset to <code>mtp</code>.",
+    decode: [
+      { token: "init.svc.adbd = running", meaning: "The ADB daemon is currently active and listening." },
+      { token: "persist.sys.usb.config = mtp,adb", meaning: "Saved USB profile still includes the adb interface." }
+    ],
     steps: [
       "Turn off USB debugging and Wireless debugging in Developer options and revoke stale authorizations.",
       "Check whether any automation module or debug script starts <code>adbd</code>.",
       "Reset the USB profile to standard (<code>mtp</code>) and reboot.",
       "Verify that Developer options and <code>getprop init.svc.adbd</code> agree."
     ],
+    caution: "Before disabling debugging, make sure you still have normal access to the device and do not need USB debugging for an ongoing recovery.",
     healthyState: "With debugging off, init.svc.adbd=stopped and persist.sys.usb.config excludes adb."
   }
 };
