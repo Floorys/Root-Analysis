@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Локальный анализатор отчётов Android-детекторов и справочник по диагностике root detection." data-i18n-content="pageDescription">
+  <meta name="theme-color" content="#111514">
+  <title>HideRoot Lab — анализ детектов Android</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n="skipContent">Перейти к содержимому</a>
+  <svg class="svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="icon-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5m-6 6 6-6 6 6"/></symbol>
+    <symbol id="icon-upload" viewBox="0 0 24 24"><path d="M12 15V3m-5 5 5-5 5 5M4 14v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6"/></symbol>
+    <symbol id="icon-file" viewBox="0 0 24 24"><path d="M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8m-8 4h5"/></symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="icon-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H4v13h4"/></symbol>
+    <symbol id="icon-repeat" viewBox="0 0 24 24"><path d="m16 2 4 4-4 4M4 11V8a2 2 0 0 1 2-2h14M8 22l-4-4 4-4m12-1v3a2 2 0 0 1-2 2H4"/></symbol>
+  </svg>
+
+  <header class="site-header">
+    <div class="header-inner page-width">
+      <a class="brand" href="#top" aria-label="HideRoot Lab, на главную" data-i18n-aria-label="homeLabel">
+        <span class="brand-mark" aria-hidden="true">H</span>
+        <span>HideRoot <b>Lab</b></span>
+      </a>
+      <nav class="nav" aria-label="Основная навигация" data-i18n-aria-label="mainNavigation">
+        <a href="#diagnostics"><span class="nav-number" aria-hidden="true">01</span><span data-i18n="navAnalyze">Анализ лога</span></a>
+        <a href="#repair-guide"><span class="nav-number" aria-hidden="true">02</span><span data-i18n="navRepair">Путеводитель</span></a>
+        <a href="#methods"><span class="nav-number" aria-hidden="true">03</span><span data-i18n="navGuide">Справочник</span></a>
+        <a href="#checklist"><span class="nav-number" aria-hidden="true">04</span><span data-i18n="navChecklist">Чек-лист</span></a>
+      </nav>
+      <span class="local-badge"><i class="status-dot" aria-hidden="true"></i><span data-i18n="local">Локально</span></span>
+      <div class="language-switch" role="group" aria-label="Язык интерфейса" data-i18n-aria-label="languageLabel">
+        <button class="active" type="button" data-lang="ru" aria-pressed="true" aria-label="Русский" data-i18n-aria-label="languageRussian">RU</button>
+        <button type="button" data-lang="en" aria-pressed="false" aria-label="Английский" data-i18n-aria-label="languageEnglish">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero page-width" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow" data-i18n="heroEyebrow">ANDROID / ROOT DIAGNOSTICS</p>
+        <h1 data-i18n-html="heroTitle">Разбери детект.<span>Найди причину.</span></h1>
+        <p class="hero-lead" data-i18n="heroLead">Загрузи отчёт детектора — инструмент выделит критичные сигналы, объяснит причины и соберёт приоритетный план действий.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#diagnostics"><span data-i18n="analyzeReport">Разобрать отчёт</span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+          <a class="text-link" href="#repair-guide" data-i18n="openGuide">Открыть путеводитель</a>
+        </div>
+        <ul class="hero-points" aria-label="Возможности" data-i18n-aria-label="capabilitiesLabel">
+          <li>DUCK Detector</li>
+          <li>TXT / LOG / JSON</li>
+          <li><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg><span data-i18n="noUpload">Без отправки файлов</span></li>
+        </ul>
+      </div>
+      <div class="hero-visual">
+        <div class="report-preview">
+          <div class="preview-heading"><span class="mini-label" data-i18n="previewLabel">ФРАГМЕНТ ПРИМЕРА</span><span class="preview-format">DUCK / TXT</span></div>
+          <div class="preview-device"><svg class="icon" aria-hidden="true"><use href="#icon-file"/></svg><div><b>POCO M2012K11AG</b><span>Android 17 · DUCK Detector</span></div></div>
+          <div class="preview-signals">
+            <div class="preview-signal danger"><span class="preview-line" aria-hidden="true">01</span><div><b>SELinux</b><small>system_server · execmem</small></div><span class="severity-label">DANGER</span></div>
+            <div class="preview-signal danger"><span class="preview-line" aria-hidden="true">02</span><div><b>TEE</b><small>KeyMint · VINTF mismatch</small></div><span class="severity-label">DANGER</span></div>
+            <div class="preview-signal clear"><span class="preview-line" aria-hidden="true">03</span><div><b>Zygisk</b><small data-i18n="previewClean">Рантайм-следов нет</small></div><span class="severity-label">CLEAR</span></div>
+          </div>
+          <div class="preview-note"><span class="mini-label" data-i18n="previewNext">С ЧЕГО НАЧАТЬ</span><p data-i18n="previewAdvice">Проверь политику SELinux, затем согласованность аттестации.</p></div>
+          <button class="preview-action" type="button" data-demo><span data-i18n="previewOpen">Посмотреть полный разбор</span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></button>
+        </div>
+        <p class="preview-caption"><span class="caption-line" aria-hidden="true"></span><span data-i18n="previewCaption">Сигнал. Причина. Следующий шаг.</span></p>
+      </div>
+    </section>
+
+    <section class="section diagnostic-section" id="diagnostics">
+      <div class="section-heading page-width">
+        <div>
+          <p class="eyebrow" data-i18n="diagEyebrow">01 / ДИАГНОСТИКА</p>
+          <h2 data-i18n="diagTitle">Анализ отчёта</h2>
+        </div>
+        <p data-i18n="diagLead">Поддерживается полный отчёт DUCK Detector, а также короткие TXT, LOG и JSON-выгрузки с явными статусами.</p>
+      </div>
+
+      <div class="analyzer-shell page-width">
+        <div class="input-panel">
+          <div class="input-panel-heading"><label class="textarea-label" for="fileInput" data-i18n="importReport">Импорт отчёта</label><span class="mini-label">TXT / LOG / JSON</span></div>
+          <input id="fileInput" class="visually-hidden" type="file" tabindex="-1" accept=".txt,.log,.json,text/plain,application/json" aria-label="Выбрать отчёт" data-i18n-aria-label="selectFile">
+          <button class="drop-zone" id="dropZone" type="button" aria-describedby="message">
+            <span class="upload-icon" aria-hidden="true"><svg class="icon"><use href="#icon-upload"/></svg></span>
+            <span class="drop-copy"><strong data-i18n="dropTitle">Перетащи отчёт сюда</strong><span data-i18n="dropSubtitle">или нажми, чтобы выбрать файл до 5 МБ</span></span>
+            <svg class="icon drop-arrow" aria-hidden="true"><use href="#icon-arrow"/></svg>
+          </button>
+
+          <div class="or"><span data-i18n="orPaste">или вставь содержимое</span></div>
+          <label class="textarea-label" for="reportText" data-i18n="reportText">Текст отчёта</label>
+          <textarea id="reportText" rows="7" spellcheck="false" aria-describedby="reportHelp inputInfo message" aria-invalid="false" placeholder="[DANGER] SELinux&#10;Verdict: Dirty policy detected&#10;&#10;Вставь полный отчёт, включая итоговые статусы…" data-i18n-placeholder="reportPlaceholder"></textarea>
+          <div class="message" id="message" role="status" aria-live="polite"></div>
+
+          <div class="input-footer">
+            <span id="inputInfo" class="input-info">Файл не выбран</span>
+            <button class="button text-button" id="clearButton" type="button" data-i18n="clear">Очистить</button>
+          </div>
+          <div class="input-actions">
+            <p class="privacy-note" id="reportHelp"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg><span data-i18n="privacy">Всё обрабатывается в браузере. Отчёт никуда не загружается.</span></p>
+            <div class="button-row">
+              <button class="button primary" id="analyzeButton" type="button"><span id="analyzeLabel" data-i18n="analyze">Анализировать</span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="supported-panel">
+          <p class="mini-label" data-i18n="recognized">Что распознаётся</p>
+          <ul class="supported-list">
+            <li><span>01</span><div><b>SELinux / sepolicy</b><small data-i18n="policyDetails">Режим, avc: denied, метки</small></div></li>
+            <li><span>02</span><div><b data-i18n="mountsModulesLabel">Монтирования и модули</b><small data-i18n="mountsModulesDetails">/proc/mounts, module.prop, сбои скриптов</small></div></li>
+            <li><span>03</span><div><b data-i18n="servicesLabel">Системные сервисы</b><small data-i18n="servicesDetails">KeyMint/Keystore, Zygote, SystemServer</small></div></li>
+            <li><span>04</span><div><b>TEE / attestation</b><small>KeyMint, keybox, VINTF</small></div></li>
+            <li><span>05</span><div><b data-i18n="environment">Окружение</b><small data-i18n="environmentDetails">ADB, приложения, VPN, properties</small></div></li>
+          </ul>
+          <div class="supported-tip" data-i18n-html="fullReportTip">Лучший результат даёт <b>полный</b> отчёт, а не скриншот или одна строка.</div>
+        </aside>
+      </div>
+
+      <div class="analysis-empty page-width" id="analysisEmpty">
+        <span class="empty-icon" aria-hidden="true"><svg class="icon"><use href="#icon-file"/></svg></span>
+        <div><h3 data-i18n="analysisEmptyTitle">Здесь будет разбор твоего отчёта</h3><p data-i18n="analysisEmptyText">Добавь файл или текст выше. Хочешь сначала посмотреть результат?</p></div>
+        <button class="text-link" id="exampleButton" type="button" data-demo><span data-i18n="showExample">Показать пример</span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></button>
+      </div>
+
+      <div class="loading-state page-width hidden" id="analysisLoading">
+        <div class="loading-heading" role="status"><span class="status-dot" aria-hidden="true"></span><span id="loadingLabel"></span><span data-i18n="loadingHint">Локально, в этом браузере</span></div>
+        <div class="skeleton-layout" aria-hidden="true">
+          <div class="skeleton-summary"><span class="skeleton skeleton-score"></span><div><span class="skeleton skeleton-short"></span><span class="skeleton"></span><span class="skeleton"></span></div></div>
+          <div class="skeleton-stats"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+          <div class="skeleton-panel"><span class="skeleton skeleton-short"></span><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+          <div class="skeleton-panel"><span class="skeleton skeleton-short"></span><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+        </div>
+      </div>
+
+      <div class="results page-width hidden" id="results" role="region" aria-labelledby="riskTitle" tabindex="-1">
+        <div class="results-top">
+          <div class="risk-card">
+            <div class="score-ring" id="scoreRing"><span id="scoreValue">0</span><small>/ 100</small></div>
+            <div><p class="mini-label" data-i18n="riskScore">ОЦЕНКА РИСКА</p><h3 id="riskTitle">Нет данных</h3><p id="riskText"></p></div>
+          </div>
+          <div class="stats" id="stats"></div>
+        </div>
+
+        <div class="report-meta" id="reportMeta"></div>
+
+        <div class="results-grid">
+          <section class="plan-panel">
+            <div class="panel-heading">
+              <div><p class="mini-label" data-i18n="byPriority">ПО ПРИОРИТЕТУ</p><h3 data-i18n="actionPlan">План действий</h3></div>
+              <button class="copy-button" id="copyPlanButton" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg><span id="copyLabel" data-i18n="copy">Копировать</span></button>
+            </div>
+            <p class="copy-status" id="copyStatus" role="status" aria-live="polite"></p>
+            <ol class="action-plan" id="actionPlan"></ol>
+          </section>
+
+          <section class="findings-panel">
+            <div class="panel-heading">
+              <div><p class="mini-label" data-i18n="signalAnalysis">РАЗБОР СИГНАЛОВ</p><h3 data-i18n="foundDetections">Найденные детекты</h3></div>
+              <div class="finding-filters" id="findingFilters" role="group" aria-label="Фильтр детектов" data-i18n-aria-label="findingFilterLabel">
+                <button class="active" data-severity="problem" type="button" data-i18n="problems" aria-pressed="true">Проблемы</button>
+                <button data-severity="all" type="button" data-i18n="all" aria-pressed="false">Все</button>
+              </div>
+            </div>
+            <div class="finding-list" id="findingList"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="section repair-section" id="repair-guide">
+      <div class="reference-layout page-width">
+        <aside class="reference-sidebar">
+          <div class="section-heading">
+            <div><p class="eyebrow" data-i18n="repairEyebrow">02 / ПУТЕВОДИТЕЛЬ</p><h2 data-i18n="repairTitle">Лечение устройств</h2></div>
+            <p data-i18n="repairLead">Справочник по устранению реальных сбоев SELinux, монтирований, модулей и системных сервисов без удаления root.</p>
+          </div>
+          <div class="method-controls">
+            <label class="textarea-label" for="repairSearch" data-i18n="repairSearchLabel">Поиск по симптомам</label>
+            <div class="search-field"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><input id="repairSearch" type="search" placeholder="avc: denied, KeyMint, overlay, module.prop…" data-i18n-placeholder="repairSearch" aria-controls="repairGrid"></div>
+            <p class="mini-label filter-label" data-i18n="repairCategoryLabel">КАТЕГОРИЯ</p>
+            <div class="method-filters" id="repairFilters" role="group" aria-label="Категория" data-i18n-aria-label="repairCategoryLabel">
+              <button class="active" data-repair-filter="all" type="button" aria-pressed="true"><span data-i18n="repairCatAll">Все</span><span class="filter-count" data-repair-count="all"></span></button>
+              <button data-repair-filter="selinux" type="button" aria-pressed="false"><span data-i18n="repairCatSelinux">SELinux</span><span class="filter-count" data-repair-count="selinux"></span></button>
+              <button data-repair-filter="mounts" type="button" aria-pressed="false"><span data-i18n="repairCatMounts">Монтирования</span><span class="filter-count" data-repair-count="mounts"></span></button>
+              <button data-repair-filter="modules" type="button" aria-pressed="false"><span data-i18n="repairCatModules">Модули</span><span class="filter-count" data-repair-count="modules"></span></button>
+              <button data-repair-filter="services" type="button" aria-pressed="false"><span data-i18n="repairCatServices">Сервисы</span><span class="filter-count" data-repair-count="services"></span></button>
+            </div>
+            <div class="snapshot-box">
+              <p class="mini-label" data-i18n="adbSnapshotTitle">Снимок диагностики (read-only)</p>
+              <p class="snapshot-desc" data-i18n="adbSnapshotDesc">Выполните на ПК по ADB, чтобы собрать getenforce, avc, монтирования, модули и ошибки сервисов в один текстовый лог:</p>
+              <code class="snapshot-code" id="adbSnapshotCmd">adb shell "echo getenforce:$(getenforce); dmesg | grep -i avc | tail -n 25; cat /proc/mounts; ls -la /data/adb/modules; logcat -b main,system,crash -d -t 80 *:E"</code>
+              <div class="snapshot-actions">
+                <button class="copy-button" id="copySnapshotButton" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg><span id="copySnapshotLabel" data-i18n="copySnapshot">Копировать команду</span></button>
+                <span class="copy-status snapshot-status" id="snapshotCopyStatus" role="status" aria-live="polite"></span>
+              </div>
+            </div>
+          </div>
+        </aside>
+        <div class="reference-main">
+          <div class="reference-heading"><p class="method-count" id="repairCount" role="status" aria-live="polite"></p><span data-i18n="repairHint">Симптом → проверка → шаг починки</span></div>
+          <div class="methods-grid" id="repairGrid"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section methods-section" id="methods">
+      <div class="reference-layout page-width">
+        <aside class="reference-sidebar">
+          <div class="section-heading">
+            <div><p class="eyebrow" data-i18n="knowledgeEyebrow">03 / БАЗА ЗНАНИЙ</p><h2 data-i18n="methodsTitle">Справочник методов</h2></div>
+            <p data-i18n="methodsLead">Методы сгруппированы по платформам и слоям детекта. Используй рекомендации из анализа как отправную точку.</p>
+          </div>
+          <div class="method-controls">
+            <label class="textarea-label" for="methodSearch" data-i18n="searchMethodsLabel">Поиск по справочнику</label>
+            <div class="search-field"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><input id="methodSearch" type="search" placeholder="SUSFS, Zygisk, attestation…" data-i18n-placeholder="methodSearch" aria-controls="methodsGrid"></div>
+            <p class="mini-label filter-label" data-i18n="platformLabel">ПЛАТФОРМА</p>
+            <div class="method-filters" id="methodFilters" role="group" aria-label="Фильтр платформ" data-i18n-aria-label="platformFilterLabel">
+              <button class="active" data-filter="all" type="button" aria-pressed="true"><span data-i18n="all">Все</span><span class="filter-count" data-filter-count="all"></span></button>
+              <button data-filter="magisk" type="button" aria-pressed="false"><span>Magisk</span><span class="filter-count" data-filter-count="magisk"></span></button>
+              <button data-filter="ksu" type="button" aria-pressed="false"><span>KernelSU</span><span class="filter-count" data-filter-count="ksu"></span></button>
+              <button data-filter="ap" type="button" aria-pressed="false"><span>APatch</span><span class="filter-count" data-filter-count="ap"></span></button>
+              <button data-filter="gen" type="button" aria-pressed="false"><span data-i18n="general">Общие</span><span class="filter-count" data-filter-count="gen"></span></button>
+            </div>
+          </div>
+        </aside>
+        <div class="reference-main">
+          <div class="reference-heading"><p class="method-count" id="methodCount" role="status" aria-live="polite"></p><span data-i18n="referenceHint">От сигнала — к нужному компоненту</span></div>
+          <div class="methods-grid" id="methodsGrid"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section checklist-section" id="checklist">
+      <div class="checklist-layout page-width">
+        <div class="checklist-intro">
+          <div class="section-heading">
+            <div><p class="eyebrow" data-i18n="checkEyebrow">04 / БАЗОВАЯ ПРОВЕРКА</p><h2 data-i18n="checkTitle">Перед повторным сканом</h2></div>
+            <p data-i18n="checkLead">Меняй по одному компоненту и повторяй тест после каждого шага — иначе источник улучшения или регрессии будет неясен.</p>
+          </div>
+          <p class="check-note"><svg class="icon" aria-hidden="true"><use href="#icon-repeat"/></svg><span data-i18n="checkNote">Один шаг. Один новый отчёт.</span></p>
+        </div>
+        <ol class="checklist-grid">
+          <li><span aria-hidden="true">01</span><div><h3 data-i18n="check1Title">Зафиксируй состояние</h3><p data-i18n="check1Text">Сохрани исходный отчёт, версии ядра, менеджера и модулей. Это твоя точка сравнения.</p></div></li>
+          <li><span aria-hidden="true">02</span><div><h3 data-i18n="check2Title">Устрани критичное</h3><p data-i18n="check2Text">Сначала DANGER: SELinux, TEE, boot state. Косметические package-сигналы оставь на потом.</p></div></li>
+          <li><span aria-hidden="true">03</span><div><h3 data-i18n="check3Title">Убери противоречия</h3><p data-i18n="check3Text">Согласуй props, attestation и runtime. Отключённая настройка при активном сервисе — сильный сигнал.</p></div></li>
+          <li><span aria-hidden="true">04</span><div><h3 data-i18n="check4Title">Перезагрузи и проверь</h3><p data-i18n="check4Text">После системных модулей нужна полная перезагрузка. Новый отчёт сравни с исходным.</p></div></li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-inner page-width">
+      <div class="brand"><span class="brand-mark small-mark" aria-hidden="true">H</span><b>HideRoot Lab</b></div>
+      <p data-i18n="footerText">Локальный диагностический справочник. Рекомендации зависят от устройства, ROM и версий компонентов.</p>
+      <a class="text-link" href="#top"><span data-i18n="toTop">Наверх</span><svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg></a>
+    </div>
+  </footer>
+
+  <script src="assets/data.js"></script>
+  <script src="assets/parser.js"></script>
+  <script src="assets/i18n.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
